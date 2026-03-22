@@ -1,0 +1,62 @@
+version: '3.8'
+
+services:
+  # Redis for task queue
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # PostgreSQL for production-like setup (optional for dev)
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: agent_platform
+      POSTGRES_PASSWORD: localdev
+      POSTGRES_DB: agent_platform
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agent_platform"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    profiles:
+      - postgres  # Only starts with: docker-compose --profile postgres up
+
+  # Ollama for local LLM (optional)
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    profiles:
+      - ollama  # Only starts with: docker-compose --profile ollama up
+
+  # Redis Commander for debugging (optional)
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    ports:
+      - "8081:8081"
+    environment:
+      REDIS_HOSTS: local:redis:6379
+    depends_on:
+      - redis
+    profiles:
+      - debug  # Only starts with: docker-compose --profile debug up
+
+volumes:
+  redis_data:
+  postgres_data:
+  ollama_data:

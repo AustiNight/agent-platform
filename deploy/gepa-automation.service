@@ -1,0 +1,58 @@
+# GEPA Automation Service
+# 
+# This service runs the GEPA continuous optimization loop.
+# It automatically collects traces, runs optimizations, and
+# applies improved prompts without human intervention.
+#
+# Installation:
+#   sudo cp gepa-automation.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable gepa-automation
+#   sudo systemctl start gepa-automation
+#
+# Check status:
+#   sudo systemctl status gepa-automation
+#   journalctl -u gepa-automation -f
+
+[Unit]
+Description=GEPA Automated Prompt Optimization Service
+Documentation=https://github.com/your-org/agent-platform
+After=network.target redis.service postgresql.service
+Wants=redis.service
+
+[Service]
+Type=simple
+User=agent-platform
+Group=agent-platform
+
+# Working directory (adjust to your installation)
+WorkingDirectory=/opt/agent-platform
+
+# Environment file
+EnvironmentFile=/opt/agent-platform/.env
+
+# The command to run
+ExecStart=/opt/agent-platform/venv/bin/python -m src.core.gepa.auto_loop start
+
+# Restart policy - always restart on failure
+Restart=always
+RestartSec=30
+
+# Resource limits
+MemoryMax=2G
+CPUQuota=50%
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/agent-platform/data
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=gepa-automation
+
+[Install]
+WantedBy=multi-user.target

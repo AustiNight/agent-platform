@@ -1,0 +1,56 @@
+# GEPA Automation Service - Docker Compose Override
+#
+# Use this alongside the main docker-compose.yml:
+#   docker-compose -f docker-compose.yml -f docker-compose.gepa.yml up -d
+#
+# Or merge into your main docker-compose.yml
+
+version: '3.8'
+
+services:
+  # GEPA Automation Service
+  gepa-automation:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: python -m src.core.gepa.auto_loop start
+    environment:
+      - GEPA_AUTO_ENABLED=true
+      - DATABASE_URL=postgresql+asyncpg://agent_platform:localdev@postgres:5432/agent_platform
+      - REDIS_URL=redis://redis:6379/0
+    env_file:
+      - .env
+    volumes:
+      - gepa_data:/app/data/gepa
+      - ./data/screenshots:/app/data/screenshots
+    depends_on:
+      - redis
+      - postgres
+    restart: always
+    healthcheck:
+      test: ["CMD", "python", "-m", "src.core.gepa.auto_loop", "status"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+
+  # GEPA Dashboard (optional - for monitoring)
+  gepa-dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: uvicorn src.core.gepa.dashboard:app --host 0.0.0.0 --port 8082
+    ports:
+      - "8082:8082"
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://agent_platform:localdev@postgres:5432/agent_platform
+    env_file:
+      - .env
+    volumes:
+      - gepa_data:/app/data/gepa:ro
+    depends_on:
+      - gepa-automation
+    profiles:
+      - dashboard  # Only start with: docker-compose --profile dashboard up
+
+volumes:
+  gepa_data:
